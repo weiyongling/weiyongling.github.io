@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>《计算机网络》谢希仁第七/八版 - 期末大通关复习指南</title>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --secondary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --sidebar-width: 280px;
+            --border-color: #e2e8f0;
+            --code-bg: #f1f5f9;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-color);
+            line-height: 1.7;
+            display: flex;
+            background-color: #fff;
+        }
+
+        /* 侧边栏目录 */
+        .sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--bg-color);
+            border-right: 1px solid var(--border-color);
+            position: fixed;
+            overflow-y: auto;
+            padding: 25px 20px;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .sidebar h2 {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .sidebar ul { list-style: none; }
+        .sidebar li { margin-bottom: 8px; }
+        
+        .sidebar a {
+            text-decoration: none;
+            color: #475569;
+            font-size: 0.9rem;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .sidebar a:hover {
+            background-color: #e2e8f0;
+            color: var(--secondary-color);
+            padding-left: 18px;
+        }
+
+        /* 主体内容区 */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 50px;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .header-section {
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        .header-section h1 { font-size: 2.2rem; color: var(--primary-color); margin-bottom: 10px; }
+        
+        /* 章节样式 */
+        section {
+            margin-bottom: 60px;
+            scroll-margin-top: 20px;
+        }
+        
+        h2 { font-size: 1.6rem; margin-top: 30px; margin-bottom: 20px; color: var(--primary-color); border-left: 5px solid var(--secondary-color); padding-left: 15px; }
+        h3 { font-size: 1.2rem; margin-top: 25px; margin-bottom: 12px; color: #0f172a; }
+        p { margin-bottom: 15px; text-align: justify; }
+        
+        ul, ol { margin-bottom: 20px; padding-left: 25px; }
+        li { margin-bottom: 6px; }
+        
+        /* 划重点样式 */
+        .highlight {
+            background-color: #fef08a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #854d0e;
+        }
+
+        /* 重点概念卡片 */
+        .card {
+            background-color: #f8fafc;
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .card-title { font-weight: bold; margin-bottom: 8px; color: var(--primary-color); }
+
+        /* 公式与计算公式块 */
+        .formula {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: "Courier New", Courier, monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        /* 移动端菜单按钮 */
+        .menu-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1024px) {
+            .main-content { padding: 40px; }
+        }
+
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            .sidebar {
+                transform: translateX(-100%);
+                box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+                width: 70%;
+            }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 70px 20px 20px 20px; }
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 999;
+            }
+            .overlay.active { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="overlay" id="overlay"></div>
+    <button class="menu-toggle" id="menuToggle">☰ 展开目录</button>
+
+    <nav class="sidebar" id="sidebar">
+        <h2>复习目录</h2>
+        <ul>
+            <li><a href="#ch1">第一章 体系结构与概述</a></li>
+            <li><a href="#ch2">第二章 物理层原理及计算</a></li>
+            <li><a href="#ch3">第三章 数据链路层与局域网</a></li>
+            <li><a href="#ch4">第四章 网络层与IP编址</a></li>
+            <li><a href="#ch5">第五章 运输层（双核心协议）</a></li>
+            <li><a href="#ch6">第六章 应用层核心协议</a></li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <div class="header-section">
+            <h1>《计算机网络》期末通关背诵手册</h1>
+            <p><strong>适用教材：</strong>谢希仁 编著（全面覆盖考研、期末大题、基础概念及网络工程常识）</p>
+        </div>
+
+        <section id="ch1">
+            <h2>第一章 计算机网络体系结构</h2>
+            <h3>1. 计算机网络的组成与工作方式</h3>
+            <ul>
+                <li><strong>边缘部分：</strong>由所有连接在互联网上的主机（端系统）组成。用户直接使用，用来进行通信和资源共享。其通信方式分为 <strong>C/S 方式</strong>（客户/服务器）和 <strong>P2P 方式</strong>（对等连接）。</li>
+                <li><strong>核心部分：</strong>由大量网络和连接这些网络的路由器组成。为边缘部分提供连通性和交换服务。核心部分最关键的交互方式是<span class="highlight">分组交换（Packet Switching）</span>。</li>
+            </ul>
+            
+            <h3>2. 三种交换方式的对比（大题常考常识）</h3>
+            <ul>
+                <li><strong>电路交换：</strong>整个报文从源点到终点连续地传输。需要经历：建立连接（占用资源） &rarr; 通话 &rarr; 释放连接。不适合突发突发流量。</li>
+                <li><strong>报文交换：</strong>整个报文先传送到相邻结点，全部存储下来后查找转发表，再转发到下一个结点（存储-转发）。</li>
+                <li><strong>分组交换：</strong>把长报文划分为若干个等长的、较短的“分组”。单个分组逐个地在网络中存储-转发。<strong>优点：</strong>高效（动态分配带宽）、灵活、迅速、可靠。<strong>缺点：</strong>会产生排队时延，且可能出现丢包和乱序。</li>
+            </ul>
+
+            <h3>3. 计算机网络的性能指标</h3>
+            <p><strong>四种时延（总时延 = 发送时延 + 传播时延 + 处理时延 + 排队时延）：</strong></p>
+            <div class="formula">
+                1. 发送时延（传输时延） = 数据帧长度(bit) / 发送速率(bit/s)  [发生在网络适配器内部]<br>
+                2. 传播时延 = 信道长度(m) / 电磁波在信道上的传播速率(m/s)  [发生在传输媒体上]
+            </div>
+            <ul>
+                <li><strong>时延带宽积：</strong>时延带宽积 = 传播时延 &times; 带宽。表示一个链路容纳比特的最大能力，又称“以比特为单位的链路长度”。</li>
+                <li><strong>往返时间 RTT：</strong>从发送方发送数据开始，到发送方收到接收方的确认所经历的时间。</li>
+            </ul>
+
+            <h3>4. 体系结构的分层模型</h3>
+            <p>体系结构主要有三种：OSI（七层）、TCP/IP（四层）、教学用五层模型。</p>
+            <div class="card">
+                <div class="card-title">五层模型及其数据对等单位：</div>
+                1. <strong>应用层：</strong>通过应用进程间的交互完成特定网络应用（数据单位：报文 Message）<br>
+                2. <strong>运输层：</strong>向两台主机中进程之间的通信提供通用的数据传输服务（数据单位：TCP段 Segment / UDP数据报 Datagram）<br>
+                3. <strong>网络层：</strong>负责为分组交换网上的不同主机提供通信服务，选择路由（数据单位：IP数据报/分组 Packet）<br>
+                4. <strong>数据链路层：</strong>将网络层交下来的IP数据报组装成帧（数据单位：帧 Frame）<br>
+                5. <strong>物理层：</strong>透明地传送比特流（数据单位：比特 Bit）
+            </div>
+        </section>
+
+        <section id="ch2">
+            <h2>第二章 物理层原理及计算</h2>
+            <h3>1. 物理层四大特性</h3>
+            <ul>
+                <li><strong>机械特性：</strong>指明接口所用接线器的形状、尺寸、引脚数及排列方式。</li>
+                <li><strong>电气特性：</strong>指明在接口电缆的各条线上出现的电压的范围。</li>
+                <li><strong>功能特性：</strong>指明某条线上出现的某一电平的电压的意义。</li>
+                <li><strong>过程特性：</strong>指明对于不同功能的各种可能事件的出现顺序。</li>
+            </ul>
+
+            <h3>2. 限制码元传输速率的两个核心定理（必考计算题）</h3>
+            <p><strong>(1) 奈氏准则（Nyquist）：</strong>在理想低通信道中，最高码元传输速率 = 2W（Baud），其中W是信道带宽（Hz）。</p>
+            <div class="formula">
+                理想低通信道极限数据率 = 2W * log2(V)  (单位: bit/s)<br>
+                * V 表示码元的状态数（即调制电平数）
+            </div>
+            <p><strong>(2) 香农公式（Shannon）：</strong>在带噪信道中，极限信息传输速率 C 满足：</p>
+            <div class="formula">
+                C = W * log2(1 + S/N)  (单位: bit/s)<br>
+                * W 为信道带宽(Hz)；S 为信道内所传信号的平均功率；N 为信道内部的高斯噪声功率。<br>
+                * 注意：题目中给出的信噪比通常是分贝(dB)，公式为: dB = 10 * log10(S/N)。例如 30dB 意味着 S/N = 1000。
+            </div>
+
+            <h3>3. 编码与调制</h3>
+            <ul>
+                <li><strong>曼彻斯特编码：</strong>每个码元正中间都有一次电压跳变。位周期中心的上跳变代表0（或1），下跳变代表1（或0）。<span class="highlight">自带同步信号</span>，但占用的频带宽度加倍。</li>
+                <li><strong>差分曼彻斯特编码：</strong>每个码元中心仍有跳变，但码元起始处<strong>有跳变代表0，无跳变代表1</strong>。抗干扰性比曼彻斯特编码更好。</li>
+            </ul>
+        </section>
+
+        <section id="ch3">
+            <h2>第三章 数据链路层与局域网</h2>
+            <h3>1. 三个基本问题</h3>
+            <ul>
+                <li><strong>封装成帧：</strong>在一段数据的前后分别添加首部（SOH）和尾部（EOT），构成一个帧。确定帧的界限。</li>
+                <li><strong>透明传输：</strong>解决数据中偶然出现与帧定界符相同的控制字符的问题。使用<span class="highlight">字节填充（Byte Stuffing）</span>或比特填充（0比特插入法，5个1加一个0）。</li>
+                <li><strong>差错检测：</strong>广泛采用<strong>循环冗余检验（CRC）</strong>。利用多项式除法算出余数作为冗余码（FCS）拼接在帧尾。接收方收到后除以同样的多项式，若余数为0则认为无差错。注意：CRC只能做到<strong>无差错接受</strong>，无法保证可靠传输。</li>
+            </ul>
+
+            <h3>2. 局域网核心协议：CSMA/CD</h3>
+            <p>主要用于总线形以太网。核心口诀：<strong>先听后发，边听边发，冲突停发，随机重发。</strong></p>
+            <ul>
+                <li><strong>争用期（碰撞窗口）：</strong>单程传播时延为 &tau;，争用期大小为 <span class="highlight">2&tau;</span>。发送方在发送数据后经过 2&tau; 的时间仍未检测到碰撞，才能确认这次发送绝对不会发生碰撞。</li>
+                <li><strong>最短有效帧长：</strong>以太网规定的最短有效帧长为 <strong>64 字节</strong>。凡长度小于 64 字节的帧都是由于冲突而异常中止的无效帧。</li>
+                <li><strong>截断二进制指数退避算法：</strong>发生碰撞后，停止发送，推迟一个随机时间再发送。</li>
+            </ul>
+            <div class="formula">
+                退避时间 = 争用期 2&tau; * r<br>
+                其中 r = 随机数从 [0, 1, ..., (2^k - 1)] 中选择，k = min(重传次数, 10)。当重传达 16 次仍不能成功时溢出报错。
+            </div>
+
+            <h3>3. 以太网交换机与 VLAN</h3>
+            <ul>
+                <li><strong>交换机原理：</strong>工作在数据链路层。拥有<strong>自学习能力</strong>，通过检查收到的帧的源 MAC 地址来自动建立和维护“转发表”（MAC地址-接口映射）。</li>
+                <li><strong>虚拟局域网 (VLAN)：</strong>通过在以太网帧结构中插入 4 字节的 <strong>802.1Q 标签</strong>（其中有 12 位 VLAN ID），在逻辑上将局域网划分为多个广播域。</li>
+                <li><strong>接口类型：</strong><strong>Access 接口</strong>（只能属于一个VLAN，常连接电脑）；<strong>Trunk 接口</strong>（允许多个VLAN通过，常用于交换机之间的互连）。</li>
+            </ul>
+        </section>
+
+        <section id="ch4">
+            <h2>第四章 网络层与 IP 编址</h2>
+            <h3>1. 传统分类 IP 地址</h3>
+            <p>IP 地址由网络号（net-id）和主机号（host-id）组成。总长 32 位。</p>
+            <ul>
+                <li><strong>A类地址：</strong>0.0.0.0 ~ 127.255.255.255（网络号占8位，第一位固定为0）。127.X.X.X 为本地环回地址。</li>
+                <li><strong>B类地址：</strong>128.0.0.0 ~ 191.255.255.255（网络号占16位，前两位固定为10）。</li>
+                <li><strong>C类地址：</strong>192.0.0.0 ~ 223.255.255.255（网络号占24位，前三位固定为110）。</li>
+                <li><strong>D类地址：</strong>224.0.0.0 ~ 239.255.255.255（多播/组播地址）。</li>
+            </ul>
+            <p><strong>注意不能分配的主机号：</strong>主机号全0代表本网络网络地址，主机号全1代表本网络的广播地址。</p>
+
+            <h3>2. CIDR（无分类编址）与子网划分计算</h3>
+            <p>斜线记法（如 192.168.1.0/24），后面的 24 表示网络前缀占 24 位，对应的子网掩码就是 24 个 1 和 8 个 0，即 255.255.255.0。</p>
+            <div class="card">
+                <div class="card-title">🔥 必考大题：子网划分与最长前缀匹配</div>
+                1. <strong>路由聚合（超网）：</strong>把网络前缀相同的连续网络合并。找相同的二进制前缀，相同部分作为新的前缀长度。<br>
+                2. <strong>最长前缀匹配：</strong>路由器在转发表中查找路由时，可能会匹配到多个项目。应该选择网络前缀<strong>最长</strong>（掩码1最多）的那一条，因为这样路由最精确。
+            </div>
+
+            <h3>3. 网络层四大核心协议</h3>
+            <ul>
+                <li><strong>IP 协议：</strong>核心协议，提供无连接、尽最大努力交付的服务。</li>
+                <li><strong>ARP 协议（地址解析协议）：</strong><span class="highlight">将 IP 地址转换为 MAC 地址</span>。工作原理：主机通过在局域网内<strong>广播</strong>发送 ARP 请求分组，目标主机检测到后通过<strong>单播</strong>回复 ARP 响应分组。从而填充自己的 ARP 缓存表。</li>
+                <li><strong>ICMP 协议（网际控制报文协议）：</strong>允许路由器或主机报告差错情况和提供异常情况的报告。典型应用包括：<strong>PING</strong>（使用 ICMP 回送请求与回答报文）和 <strong>Traceroute</strong>（用来跟踪分组经过的路由）。</li>
+            </ul>
+
+            <h3>4. 路由协议（内部网关协议 IGP）</h3>
+            <ul>
+                <li><strong>RIP 协议：</strong>基于<strong>距离向量算法</strong>。使用 UDP（端口520）传输。最大跳数为 15 跳，16 跳表示不可达。坏消息传得慢（存在路由环路问题）。</li>
+                <li><strong>OSPF 协议：</strong>基于<strong>链路状态算法</strong>。直接使用 IP 数据报传输。使用 Dijkstra 算法计算最短路径树。全网独立自适应，收敛速度快，无路由环路。</li>
+            </ul>
+        </section>
+
+        <section id="ch5">
+            <h2>第五章 运输层（双核心协议）</h2>
+            <h3>1. UDP 与 TCP 的对比</h3>
+            <ul>
+                <li><strong>UDP：</strong>无连接、尽最大努力交付、面向报文（不拆分不合并，保留应用层报文边界）、支持一对一/一对多/多对多交互、首部开销小（仅 8 字节）。</li>
+                <li><strong>TCP：</strong>面向连接、可靠交付、全双工通信、<span class="highlight">面向字节流</span>（把应用层交下来的数据看成无结构的字节流，可拆分或重组）、首部开销大（至少 20 字节）。</li>
+            </ul>
+
+            <h3>2. TCP 的三次握手（必须死记硬背状态名和大题图解）</h3>
+            <ol>
+                <li><strong>第一次：</strong>客户机向服务器发送连接请求。首部：<code class="highlight">SYN=1, seq=x</code>。客户端进入 <code class="highlight">SYN-SENT</code> 状态。</li>
+                <li><strong>第二次：</strong>服务器收到后同意连接，回复确认。首部：<code class="highlight">SYN=1, ACK=1, seq=y, ack=x+1</code>。服务器进入 <code class="highlight">SYN-RCVD</code> 状态。</li>
+                <li><strong>第三次：</strong>客户机给出最终确认。首部：<code class="highlight">ACK=1, seq=x+1, ack=y+1</code>。双方进入 <code class="highlight">ESTABLISHED</code> 状态，连接建立。</li>
+            </ol>
+
+            <h3>3. TCP 的四次挥手</h3>
+            <ol>
+                <li><strong>第一次：</strong>客户机发起释放连接。首部：<code class="highlight">FIN=1, seq=u</code>。进入 <code class="highlight">FIN-WAIT-1</code> 状态。</li>
+                <li><strong>第二次：</strong>服务器回复确认。首部：<code class="highlight">ACK=1, seq=v, ack=u+1</code>。服务器进入 <code class="highlight">CLOSE-WAIT</code>（半关闭），客户端收到后进入 <code class="highlight">FIN-WAIT-2</code>。</li>
+                <li><strong>第三次：</strong>服务器数据发完，发起释放连接。首部：<code class="highlight">FIN=1, ACK=1, seq=w, ack=u+1</code>。进入 <code class="highlight">LAST-ACK</code> 状态。</li>
+                <li><strong>第四次：</strong>客户机回复最终确认。首部：<code class="highlight">ACK=1, seq=u+1, ack=w+1</code>。客户机进入 <code class="highlight">TIME-WAIT</code> 状态。<span class="highlight">必须等待 2MSL（最长报文段寿命）时间</span>后才进入 CLOSED。服务器收到该 ACK 后直接 CLOSED。</li>
+            </ol>
+            <p><strong>为什么要有 TIME-WAIT 2MSL？</strong>1. 确保第四次挥手的 ACK 报文能最终到达服务器。2. 防止本连接中产生的“已失效的连接请求报文段”出现在下一个新连接中。</p>
+
+            <h3>4. TCP 拥塞控制四大算法（核心大题：绘图分析）</h3>
+            <p>发送方维持一个<strong>拥塞窗口 cwnd</strong>。发送窗口 = min(拥塞窗口, 接收方通告的接收窗口 rwnd)。</p>
+            <ul>
+                <li><strong>慢开始：</strong>由小到大指数级增长 cwnd（1, 2, 4, 8...），直到达到慢开始门限 <code class="highlight">ssthresh</code>。</li>
+                <li><strong>拥塞避免：</strong>到达 ssthresh 后，改为线性加性增大（每次往返时间 RTT 只让 cwnd + 1）。</li>
+                <li><strong>网络拥塞处理：</strong>只要出现超时（丢包），立即将新门限 <code class="highlight">ssthresh 设为当前 cwnd 的一半</code>，然后将 <code class="highlight">cwnd 降为 1</code>，重新开始慢开始。</li>
+                <li><strong>快重传与快恢复：</strong>接收方一旦收到失序段，立即发送对已收到的重复确认。发送方只要<span class="highlight">连续收到3个重复确认</span>，判定报文丢失，执行快重传（立即重传丢失段），不执行慢开始，而是执行快恢复：把 <code class="highlight">ssthresh 减半，并将 cwnd 设为减半后的值</code>，直接开始拥塞避免（线性增长）。</li>
+            </ul>
+        </section>
+
+        <section id="ch6">
+            <h2>第六章 应用层核心协议</h2>
+            <h3>1. DNS 域名解析系统</h3>
+            <ul>
+                <li><strong>概念：</strong>工作在 UDP 上，端口 53。负责将人类易读的域名转换为机器可识别的 IP 地址。</li>
+                <li><strong>查询方式：</strong><strong>递归查询</strong>（靠别人查，主机问本地域名服务器常用）；<strong>迭代查询</strong>（本地域名服务器亲自出马，逐级询问根、顶级、权限域名服务器）。</li>
+            </ul>
+
+            <h3>2. HTTP 超文本传输协议</h3>
+            <ul>
+                <li><strong>核心机制：</strong>工作在 TCP 上，端口 80。</li>
+                <li><strong>HTTP 1.0 与 1.1：</strong>1.0 默认采用<strong>非持续连接</strong>（每次下载对象都需要建立 TCP 三次握手）；1.1 默认采用<strong>持续连接</strong>（Keep-Alive，可以在一个连接上连续发送多个对象），并支持管道化传输。</li>
+                <li><strong>常用状态码：</strong>
+                    <ul>
+                        <li><code class="highlight">200 OK</code>：请求成功。</li>
+                        <li><code class="highlight">301 Moved Permanently</code>：永久重定向；<code class="highlight">302 Found</code>：临时重定向。</li>
+                        <li><code class="highlight">400 Bad Request</code>：客户端请求语法错误；<code class="highlight">403 Forbidden</code>：服务器理解但拒绝服务。</li>
+                        <li><code class="highlight">404 Not Found</code>：找不到服务器资源。</li>
+                        <li><code class="highlight">500 Internal Server Error</code>：服务器内部错误。</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>3. DHCP 动态主机配置协议</h3>
+            <p>使用 UDP 传输，端口 67(服务器) / 68(客户端)。即插即用自动分配 IP 地址。</p>
+            <p><strong>四步骤（全是广播形式交互）：</strong></p>
+            <ol>
+                <li>DHCP Discover（客户端全网广播找 DHCP 服务器）</li>
+                <li>DHCP Offer（服务器全网广播提供可用 IP 方案）</li>
+                <li>DHCP Request（客户端全网广播选择其中一个 IP 方案）</li>
+                <li>DHCP ACK（服务器全网广播确认该 IP 租约生效）</li>
+            </ol>
+        </section>
+        
+        <br><br><br>
+    </main>
+
+    <script>
+        // 移动端菜单切换逻辑
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const links = document.querySelectorAll('.sidebar a');
+
+        function toggleMenu() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        menuToggle.addEventListener('click', toggleMenu);
+        overlay.addEventListener('click', toggleMenu);
+
+        // 手机端点击链接后自动收起
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    toggleMenu();
+                }
+            });
+        });
+
+        // 丝滑滚动体验
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>
