@@ -1,0 +1,23 @@
+# WorkBuddy App 每日自动签到获取积分 —— Quantumult X 片段配置
+# 将保存在 Quantumult X 目录下的 Profiles 子目录中，在 QX 的「重写」面板里通过
+# 「添加引用」导入本片段（或手动把下面 [rewrite_local]/[task_local]/[MITM] 各段
+# 抄进你现有的配置）。
+#
+# 用法三步:
+#   1. 把 wb_get_token.js 和 wb_checkin.js 上传到你的 GitHub/gist（raw 链接可直连），
+#      然后把下面两条 URL 换成你的真实 raw 链接。
+#   2. 开启 MITM 与重写规则，在手机上打开 WorkBuddy App「Buddy 加油站/签到」页面，
+#      等通知「token 获取成功✅」。
+#   3. 禁用(关闭) get_token 那条重写规则即可；签到任务保持 enabled，每天 09:10 自动签到。
+# token 一般两个月左右过期，失效时脚本会通知你重新抓一次。
+
+[rewrite_local]
+# token 抓取（抓到后可在 QX 重写列表里单独关闭这条）
+^https?:\/\/(copilot\.tencent\.com|www\.codebuddy\.cn)\/v2\/ url script-request-header https://raw.githubusercontent.com/<你的用户名>/<你的脚本仓库路径>/wb_get_token.js
+
+[task_local]
+; WorkBuddy 每日签到（09:10 执行；接口幂等，重复执行不会重复领积分）
+10 9 * * * https://raw.githubusercontent.com/<你的用户名>/<你的脚本仓库路径>/wb_checkin.js, tag=WorkBuddy签到, enabled=true
+
+[MITM]
+hostname = copilot.tencent.com, www.codebuddy.cn
