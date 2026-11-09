@@ -14,11 +14,8 @@
 ^https?:\/\/(copilot\.tencent\.com|www\.codebuddy\.cn)\/v2\/ url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_get_token.js
 
 [task_local]
-; WorkBuddy 每日签到（09:10 执行；接口幂等，重复执行不会重复领积分）
-10 9 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_checkin.js, tag=WorkBuddy签到, enabled=true
-
-[task_local]
-30 8,20 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_checkin.js, img-url=https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/workbuddy.png, tag=PingMe签到, enabled=true
+; WorkBuddy 每日签到（08:30 / 20:30 各执行一次；接口幂等，重复执行不会重复领积分）
+30 8,20 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_checkin.js, img-url=https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/workbuddy.png, tag=workbuddy签到, enabled=true
 
 [MITM]
 hostname = copilot.tencent.com, www.codebuddy.cn
