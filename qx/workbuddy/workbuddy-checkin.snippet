@@ -1,14 +1,12 @@
 # WorkBuddy App 每日自动签到获取积分 —— Quantumult X 片段配置
-# 将保存在 Quantumult X 目录下的 Profiles 子目录中，在 QX 的「重写」面板里通过
-# 「添加引用」导入本片段（或手动把下面 [rewrite_local]/[task_local]/[MITM] 各段
-# 抄进你现有的配置）。
+# 注意: QX 的「重写引用」只导入 [rewrite_local] 和 [MITM]，[task_local] 不会被
+#       自动导入！定时任务必须到 QX「设置-定时任务」里手动添加（见下方任务行）。
 #
-# 用法三步:
-#   1. 把 wb_get_token.js 和 wb_checkin.js 上传到你的 GitHub/gist（raw 链接可直连），
-#      然后把下面两条 URL 换成你的真实 raw 链接。
-#   2. 开启 MITM 与重写规则，在手机上打开 WorkBuddy App「Buddy 加油站/签到」页面，
-#      等通知「token 获取成功✅」。
-#   3. 禁用(关闭) get_token 那条重写规则即可；签到任务保持 enabled，每天 09:10 自动签到。
+# 部署步骤:
+#   1. 重写引用导入本片段（或手动抄 [rewrite_local] 的一行 + MITM hostname）
+#   2. 定时任务面板手动添加一条: 10 9 * * * <wb_checkin.js的raw链接>, tag=WorkBuddy签到
+#   3. 开启 MITM 与重写规则，手机 WorkBuddy App 打开「Buddy 加油站/签到」页面，
+#      等通知「token 获取成功✅」，然后单条禁用 get_token 那条重写规则。
 # token 一般两个月左右过期，失效时脚本会通知你重新抓一次。
 
 [rewrite_local]
@@ -18,6 +16,9 @@
 [task_local]
 ; WorkBuddy 每日签到（09:10 执行；接口幂等，重复执行不会重复领积分）
 10 9 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_checkin.js, tag=WorkBuddy签到, enabled=true
+
+[task_local]
+30 8,20 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/wb_checkin.js, img-url=https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/workbuddy/workbuddy.png, tag=PingMe签到, enabled=true
 
 [MITM]
 hostname = copilot.tencent.com, www.codebuddy.cn
