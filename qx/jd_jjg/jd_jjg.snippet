@@ -1,0 +1,23 @@
+# 京东家居馆每日自动做任务领积分 —— Quantumult X 片段配置
+# 注意: QX 的「重写引用」只导入 [rewrite_local] 和 [MITM]，[task_local] 必须
+#       到 QX「设置-定时任务」里手动添加（照抄下面那行）。
+#
+# 部署步骤:
+#   1. 重写面板「添加引用」导入本片段（或手动抄 [rewrite_local] 的一行）
+#   2. 定时任务面板手动添加: 40 9,19 * * * <jd_jjg_task.js 地址>, tag=京东家居馆做任务
+#   3. MITM 证书正常且开启 api.m.jd.com
+#   4. 手机京东 App 打开「京东家居馆」活动页一次 → 等通知「cookie 获取成功✅」
+#   5. 在 QX 定时任务里点一下任务立即运行一次验证
+#
+# cookie 失效（约1个月）时任务会通知你重新抓取；任务幂等，重复运行不会重复领分。
+
+[rewrite_local]
+# cookie 抓取: 拦截京东 App 访问活动时的 jjg_ 请求（含登录 Cookie 与设备参数），存入持久化
+^https?:\/\/api\.m\.jd\.com\/api\?(?:.*&)?functionId=jjg_(?:queryInteractiveInfoV3|mainPage|doInteractiveAssignment) url script-request-header https://weiyongling.github.io/qx/jd_jjg/jd_jjg_cookie.js
+
+[task_local]
+; 京东家居馆自动做任务（09:40 / 19:40 各一次；接口幂等，已完成的任务自动跳过）
+40 9,19 * * * https://weiyongling.github.io/qx/jd_jjg/jd_jjg_task.js, tag=京东家居馆做任务, enabled=true
+
+[MITM]
+hostname = api.m.jd.com
