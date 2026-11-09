@@ -13,11 +13,11 @@
 
 [rewrite_local]
 # cookie 抓取: 拦截京东 App 访问活动时的 jjg_ 请求（含登录 Cookie 与设备参数），存入持久化
-^https?:\/\/api\.m\.jd\.com\/api\?(?:.*&)?functionId=jjg_(?:queryInteractiveInfoV3|mainPage|doInteractiveAssignment) url script-request-header https://weiyongling.github.io/qx/jd_jjg/jd_jjg_cookie.js
+^https?:\/\/api\.m\.jd\.com\/api\?(?:.*&)?functionId=jjg_(?:queryInteractiveInfoV3|mainPage|doInteractiveAssignment) url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/jd_jjg/jd_jjg_cookie.js
 
 [task_local]
 ; 京东家居馆自动做任务（09:40 / 19:40 各一次；接口幂等，已完成的任务自动跳过）
-40 9,19 * * * https://weiyongling.github.io/qx/jd_jjg/jd_jjg_task.js, tag=京东家居馆做任务, enabled=true
+40 9,19 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/jd_jjg/jd_jjg_task.js, tag=京东家居馆做任务, enabled=true
 
 [MITM]
 hostname = api.m.jd.com
