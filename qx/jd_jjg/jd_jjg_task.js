@@ -179,6 +179,14 @@ async function main() {
             continue;
         }
 
+        // 首页访问/自定义类任务 (assignmentType=0, 请求 type=11=CUSTOMIZE)
+        if (t.assignmentType === 0) {
+            const r0 = await doTask(id, 11, "", PROJ_DOTASK, 0);
+            taskLines.push("首页访问[" + t.assignmentName + "] " + describe(r0.json));
+            await sleep(1500);
+            continue;
+        }
+
         // 浏览任务 (assignmentType=1, shoppingActivity)
         if (t.assignmentType === 1 && t.ext && t.ext.extraType === "shoppingActivity") {
             const items = (t.ext.shoppingActivity || []);
