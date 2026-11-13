@@ -1,19 +1,11 @@
-# 淘金币每日自动签到与任务 —— Quantumult X 片段配置
-# 注意: QX「重写引用」只导入 [rewrite_local] 和 [MITM]，[task_local] 需在
-#       QX「设置-定时任务」里手动添加（照抄下面那行）。
-#
-# 部署步骤:
-#   1. 重写面板「添加引用」导入本片段（或手动抄 [rewrite_local] 一行）
-#   2. MITM hostname 加 h5api.m.taobao.com
-#   3. 手机淘宝 → 我的 → 淘金币（金币小镇），等「cookie 获取成功✅」通知
-#   4. 定时任务面板手动添加: 20 10 * * * <tb_task.js>, tag=淘金币任务, enabled=true
-#   5. 点任务手动跑一次验证（通知会显示签到/任务/领金币结果）
-#
-# cookie 失效（约 1~2 周）时脚本自动尝试续 token，不行会通知重抓。
-# 覆盖: 每日签到 + 任务面板(逛商品/浏览跳转) + 自动领奖；助力/下单类自动跳过。
+# 淘金币每日自动签到+任务 (Quantumult X 重写引用)
+# 部署: ①重写引用导入本片段 ②MITM hostname 加 h5api.m.taobao.com
+#       ③手机淘宝-我的-淘金币, 等通知 cookie 获取成功
+#       ④定时任务手动添加: 20 10 * * * <tb_task.js>, tag=淘金币任务
+# cookie 失效约1~2周, 脚本自动续token, 不行会通知重抓
 
 [rewrite_local]
-^https?:\/\/h5api\.m\.taobao\.com\/h5\/mtop\. script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_cookie.js
+^https?:\/\/h5api\.m\.taobao\.com\/h5\/mtop\. url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_cookie.js
 
 [task_local]
 20 10 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_task.js, tag=淘金币任务, enabled=true
