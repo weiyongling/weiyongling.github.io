@@ -20,14 +20,13 @@ function main() {
     try {
         if (typeof $request === "undefined" || !$request || !$request.url) { $done(); return; }
         const url = $request.url;
-        if (url.indexOf("h5api.m.taobao.com") < 0 || url.indexOf("/h5/mtop.") < 0) { $done(); return; }
+        if (url.indexOf("taobao.com") < 0) { $done(); return; }
 
         const headers = $request.headers || {};
         const cookie = pick(headers, "Cookie") || "";
-        const hasTk = cookie.indexOf("_m_h5_tk=") >= 0;
-        const hasLogin = cookie.indexOf("cookie2=") >= 0 || cookie.indexOf("unb=") >= 0 || cookie.indexOf("sgcookie=") >= 0;
-        if (!hasTk || !hasLogin) {
-            console.log("[tb_cookie] Cookie 不完整（tk=" + hasTk + " login=" + hasLogin + "），跳过");
+        const hasLogin = (cookie.indexOf("cookie2=") >= 0 || cookie.indexOf("unb=") >= 0 || cookie.indexOf("sgcookie=") >= 0) && cookie.length > 200;
+        if (!hasLogin) {
+            console.log("[tb_cookie] Cookie 缺登录态，跳过");
             $done();
             return;
         }
@@ -36,7 +35,7 @@ function main() {
         const newCookie = cookie.replace(/\s/g, " ");
         $prefs.setValueForKey(newCookie, KEY);
         if (old !== newCookie) {
-            $notify("淘金币", "cookie 获取成功✅", "每 1~2 周如失效会有通知，打开金币小镇即可续抓");
+            $notify("淘金币", "cookie 获取成功✅", "脚本会自动换取签名token，无需担心缺失");
         }
         console.log("[tb_cookie] 已保存, 长度 " + newCookie.length);
         $done();

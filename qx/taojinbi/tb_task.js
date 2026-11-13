@@ -165,7 +165,9 @@ function parseJsonp(text) {
     text = (text || "").trim();
     const i = text.indexOf("(");
     if (text.indexOf("mtopjsonp") === 0 && i >= 0) text = text.slice(i + 1, text.lastIndexOf(")"));
-    return JSON.parse(text);
+    try { return JSON.parse(text); } catch (e) {}
+    // 兼容纯 JSON（PC 版网关直接回 JSON）
+    return JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
 }
 function fetchReq(url, method, body) {
     return new Promise(resolve => {
@@ -179,7 +181,13 @@ function fetchReq(url, method, body) {
                 Cookie: cookieHeader()
             },
             body: body
-        }).then(r => resolve(r), e => resolve({ statusCode: 0, body: String(e && e.error), headers: {} }));
+        }).then(r => {
+            try {
+                const sc = (r.headers && r.headers["Set-Cookie"] || "");
+                if (sc) { r._sc = sc.split("\n"); }
+            } catch (e) {}
+            resolve(r);
+        }, e => resolve({ statusCode: 0, body: String(e && e.error), headers: {} }));
     });
 }
 function mtopSign(dataStr) {
@@ -203,20 +211,23 @@ async function mtopGet(api, dataStr, extra, allowRefresh) {
     return j;
 }
 async function refreshTk() {
-    // 用 queryUserTaoCoin 拉 set-cookie 里的新 token
-    const dataStr = "{}";
-    const s = mtopSign(dataStr);
-    const url = HOST + "mtop.taobao.pc.growth.taocoin.queryusertaocoin/1.0/?jsv=2.5.1&appKey=" + APP_KEY +
-        "&t=" + s.t + "&sign=" + s.sign + "&api=mtop.taobao.pc.growth.taocoin.queryusertaocoin&v=1.0" +
+    // 任意 mtop 请求在无/旧 token 时都会下发新 token（实测）；取 set-cookie 原值两件套
+    const dataStr = JSON.stringify({ bizCode: "taoCoin", subBizCode: "coinTown" });
+    const s = mtopSign(dataStr.length ? dataStr : "{}");
+    const url = HOST + "mtop.coingame.sign.calendar.pure.pc/1.0/?jsv=2.5.1&appKey=" + APP_KEY +
+        "&t=" + s.t + "&sign=" + s.sign + "&api=" + enc("mtop.coingame.sign.calendar.pure.pc") + "&v=1.0" +
         "&dataType=jsonp&callback=mtopjsonp1&data=" + enc(dataStr);
     const r = await fetchReq(url);
-    const sc = (r.headers && (r.headers["Set-Cookie"] || r.headers["set-cookie"])) || "";
-    const m = sc.match(/_m_h5_tk=([0-9a-f]+_\d+)/);
-    const me = sc.match(/_m_h5_tk_enc=([0-9a-f]+)/);
-    if (m) {
-        setToken(m[1], me ? me[1] : undefined);
-        $prefs.setValueForKey(cookieHeader(), KEY); // 持久化新 token
-        console.log("[tb] 已刷新 _m_h5_tk");
+    const sc = (r._sc || []).join(" ; ");
+    let tk = null, te = null;
+    for (const c of (r._sc || [])) {
+        let m = c.match(/_m_h5_tk=([^;]+)/); if (m) tk = m[1];
+        m = c.match(/_m_h5_tk_enc=([^;]+)/); if (m) te = m[1];
+    }
+    if (tk) {
+        setToken(tk, te);
+        $prefs.setValueForKey(cookieHeader(), KEY);
+        console.log("[tb] 已刷新 _m_h5_tk(" + tk.slice(0, 10) + "...)");
         return true;
     }
     return false;
@@ -243,7 +254,7 @@ async function signFlow(lines) {
     if (signed) { lines.push("签到: 今日已签✅"); return; }
     const col = await mtopGet("mtop.coingame.collect.reward.pc", '{"bizCode":"taoCoin","subBizCode":"coinTown","page":"pc"}');
     const ok = (col.ret || []).join("").indexOf("SUCCESS") >= 0;
-    lines.push("签到: " + (ok ? "成功✅" : (col.ret || []).join("") + " " + ((col.data || {}).resultMessage || "")));
+    lines.push("签到: " + (ok ? "成功✅" : ((col.ret || []).join("") + " " + ((col.data || {}).resultMessage || "")).slice(0, 60)));
     await sleep(1500);
 }
 
@@ -370,6 +381,10 @@ async function main() {
     }
     COOKIE_STR = raw; COOKIE_MAP = parseCookie(raw);
 
+    // 探针: cookie 无 _m_h5_tk 时首次请求自动下发 token（实测）
+    await mtopGet("mtop.coingame.sign.calendar.pure.pc", '{"bizCode":"taoCoin","subBizCode":"coinTown"}', { valueType: "original", jsonpIncPrefix: "tbbe", type: "originaljsonp", callback: "mtopjsonptbbe1" });
+    await sleep(800);
+
     // 签到
     await signFlow(lines);
     await sleep(1200);
@@ -433,8 +448,15 @@ async function main() {
         const d3 = q3.data || {};
         lines.push("任务进度: " + (d3.finishCount) + "/" + (d3.totalCount || taskList(q3).length));
     }
+    // 余额
+    let balance = "";
+    try {
+        const bal = await mtopGet("mtop.taobao.pc.growth.taocoin.queryusertaocoin", "{}");
+        const amt = (((bal.data || {}).data || bal.data || {}) && JSON.stringify(bal.data || {}).match(/"coinAmount":"?(\d+)/));
+        if (amt) balance = "（余额 " + amt[1] + " 金币）";
+    } catch (e) {}
     console.log("[tb] " + lines.join(" | "));
-    $notify("淘金币签到任务", "完成✅", lines.slice(0, 6).join("\n"));
+    $notify("淘金币签到任务", "完成✅ " + balance, lines.slice(0, 6).join("\n"));
     $done();
 }
 
