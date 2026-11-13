@@ -13,7 +13,7 @@
 # 覆盖: 每日签到 + 任务面板(逛商品/浏览跳转) + 自动领奖；助力/下单类自动跳过。
 
 [rewrite_local]
-^https?:\/\/h5api\.m\.taobao\.com\/h5\/mtop\.(?:coingame|taobao\.pentaprism|taobao\.pc\.growth) url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_cookie.js
+^https?:\/\/h5api\.m\.taobao\.com\/h5\/mtop\. script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_cookie.js
 
 [task_local]
 20 10 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/taojinbi/tb_task.js, tag=淘金币任务, enabled=true

@@ -25,7 +25,7 @@ function main() {
         const headers = $request.headers || {};
         const cookie = pick(headers, "Cookie") || "";
         const hasTk = cookie.indexOf("_m_h5_tk=") >= 0;
-        const hasLogin = cookie.indexOf("cookie2=") >= 0 || cookie.indexOf("unb=") >= 0;
+        const hasLogin = cookie.indexOf("cookie2=") >= 0 || cookie.indexOf("unb=") >= 0 || cookie.indexOf("sgcookie=") >= 0;
         if (!hasTk || !hasLogin) {
             console.log("[tb_cookie] Cookie 不完整（tk=" + hasTk + " login=" + hasLogin + "），跳过");
             $done();
