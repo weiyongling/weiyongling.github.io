@@ -201,6 +201,14 @@ async function main() {
                 const r1 = await doTask(id, 4, it.itemId, PROJ_DOTASK, 1, { ext: { jumpUrl: jump }, jumpUrl: jump });
                 const j1 = r1.json || {};
                 if (j1.code === 103 || (j1.msg || "").indexOf("已完成") >= 0) { taskLines.push("[" + t.assignmentName + "] 已完成✅"); stop = true; break; }
+                // 新玩法检测: toUrl 为 countdown 虚拟浮窗 → 纯 HTTP 完成无效(104)，标记手动防烧轮
+                let countdownMode = false;
+                try {
+                    const tu = (((j1.data || {}).assignmentInfo || {}).toUrl) || "";
+                    const pm = tu.match(/params=([^&]+)/);
+                    if (pm && JSON.parse(decodeURIComponent(pm[1])).des === "countdown") countdownMode = true;
+                } catch (e) {}
+                if (countdownMode) { taskLines.push("⚠️[" + t.assignmentName + "] 新玩法(倒计时浮窗)需手动完成一次"); stop = true; break; }
                 await sleep(waitMs);
                 // 2) 完成（actionType=0）
                 const r2 = await doTask(id, 4, it.itemId, PROJ_DOTASK, 0);
