@@ -19,10 +19,65 @@ const ACTIVITY_ID = "4";
 const PROJ_DOTASK = "8HoEASbP7wrRmmLitaDHK1LJEWf";
 const PROJ_SIGN = "2e6bqfSg5RhoFXpJC7NmLS6yojHb";
 
-const UA = "jdapp;iPhone;16.1.50;;;M/5.0;appBuild/171135;jdSupportDarkMode/0;lang/zh_CN;ctype/0;site/CN;ccy/CNY;elder/0;ef/1;Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148;supportJDSHWK/1;";
+const UA = "jdapp;iPhone;16.1.83;;;M/5.0;appBuild/171204;jdSupportDarkMode/0;lang/zh_CN;ctype/0;site/CN;ccy/CNY;elder/0;ef/1;Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148;supportJDSHWK/1;";
 
 const sleep = ms => new Promise(r => setTimeout(r, ms + Math.floor(Math.random() * 600)));
 const enc = s => encodeURIComponent(s);
+
+// ---- 风控会话模拟（京东新玩法: 浏览有效性绑定风控会话）----
+const RISK = {
+    jdkey: "930d0f473b31918d8ab170225433e30537341b1b",
+    shshshfpb: "BApXW2fp978RAJUi8Jvyh1nv32iG-BVQmBiYpMXk59xJ1PdZfQozsgzLFlgr1GbdUYV3X-KjnsaxmcLg87_gPs9ojM1q0ryJ6woQ",
+    jmafinger: "JD0211d47dH8G5BfIiPT1794968476666071JBZ6wvm2Z-e2YEgZBJ7Apl4SjBeM_4tjgZ7Tl8LlOpP4Dpqs3cArhw18ZunmCi-d4rUpfE0vl0rfm34AKL2TDvFngDxwRITeRMM24nzT8XhSmBOTLAPRSy-ddJRUhum0g4d7dv~BApXW6sh978RDZaMftXzfJT9D2AeZkoI5FHV1HDRX9xJ1PdZfQozsgzLFlgr1GbdUYV3X-KjnsaxmcLg87_gPs9ojM1q0rzVwCN4",
+    shshshfpa: "3fd3e6ac-d4bb-4f62-c93e-b35605c3e5fc-1764683656"
+};
+function hex32() { let s = ""; for (let i = 0; i < 32; i++) s += "0123456789abcdef"[Math.floor(Math.random() * 16)]; return s; }
+function riskPost(fn, appid, bodyObj) {
+    const t = String(Date.now());
+    const body = "appid=" + enc(appid) + "&functionId=" + enc(fn) + "&t=" + t + "&body=" + enc(JSON.stringify(bodyObj)) + "&client=h5&clientVersion=16.1.83";
+    return new Promise(resolve => {
+        $task.fetch({
+            url: "https://api.m.jd.com/", method: "POST",
+            headers: {
+                "content-type": "application/x-www-form-urlencoded",
+                origin: "https://pro.m.jd.com", referer: "https://pro.m.jd.com/",
+                "user-agent": UA, Cookie: cookieHeader()
+            },
+            body: body
+        }).then(r => resolve({ status: r.statusCode, body: r.body, sc: r.headers && r.headers["Set-Cookie"] }), e => resolve({ status: 0, body: "", sc: "" }));
+    });
+}
+async function openPage(url) {
+    return new Promise(resolve => {
+        $task.fetch({ url: url, method: "GET", headers: { "user-agent": UA, Cookie: cookieHeader(), referer: "https://pro.m.jd.com/mall/active/4SitPQagKibGQK1HX7J83sroHj5x/index.html" } }).then(r => resolve(r), e => resolve(null));
+    });
+}
+// 建立风控会话（打开页面+三个风控请求），返回成功与否
+async function establishSession(itemUrl) {
+    try {
+        await openPage(itemUrl);
+        await sleep(800);
+        await riskPost("getPageConfig", "risk_h5_info", { sessionId: hex32(), businessId: "babel-core-disposal", pageUrl: itemUrl, platform: "h5", isJdApp: true });
+        await sleep(600);
+        const tc = await riskPost("getTokenC", "risk_h5", { appname: "50888", jdkey: RISK.jdkey, whwswswws: RISK.shshshfpb, body: { platform: "1", version: "7.2.0", hs: "533999D8", assoId: "" } });
+        await sleep(600);
+        const inner = { sid: hex32(), squence: "1", create_time: String(Date.now()), page_name: btoaUrl(itemUrl), page_param: "", pv_referer: "", outersize: "390,844", isevalhook: false, browser_info: hex32(), shshshfpa: RISK.shshshfpa, whwswswws: RISK.shshshfpb, ecflag: "e", jdkey: RISK.jdkey, isJdApp: true, jmafinger: RISK.jmafinger, cookie_pin: "", msdk_version: "7.2.0", wid: "", lan: "zh-CN", scrh: 844, scrah: 844, scrw: 390, scaw: 390, platf: "iPhone", pros: "20030107", temp: 37, ll: "av0L9yzwoA", lm: 0, is_headless_browser: "0000", hdr: true, osv: "iOS|17.0", clog: String(Date.now()) + "~" + hex32().slice(0, 16) };
+        const wg = await riskPost("wsgw_getinfo", "risk_h5", { appname: "jdwebm_pv", client: "h5", jdkey: RISK.jdkey, isJdApp: true, jmafinger: RISK.jmafinger, whwswswws: RISK.shshshfpb, businness: "", body: inner });
+        await sleep(800);
+        console.log("[jd_jjg] 风控会话已建立 tokenC=" + (tc.status === 200));
+        return tc.status === 200;
+    } catch (e) { console.log("[jd_jjg] 会话建立失败 " + e); return false; }
+}
+function btoaUrl(u) {
+    // base64 of url（QX 环境无 Buffer，用简化 base64：仅支持 ascii）
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let out = "", i;
+    for (i = 0; i < u.length; i += 3) {
+        const b1 = u.charCodeAt(i), b2 = u.charCodeAt(i + 1), b3 = u.charCodeAt(i + 2);
+        out += chars[b1 >> 2] + chars[((b1 & 3) << 4) | ((isNaN(b2) ? 0 : b2) >> 4)] + (isNaN(b2) ? "=" : chars[((b2 & 15) << 2) | ((isNaN(b3) ? 0 : b3) >> 6)]) + (isNaN(b3) ? "=" : chars[b3 & 63]);
+    }
+    return out;
+}
 
 let prefsHandle = {}; // cookie 数据
 
@@ -197,18 +252,12 @@ async function main() {
             for (let round = done; round < (t.assignmentTimesLimit || 1) && !stop; round++) {
                 const it = items[(round) % items.length];
                 const jump = it.url || "";
+                // 0) 建立风控会话（新玩法必需，已实测）
+                await establishSession(jump);
                 // 1) 领取（actionType=1，需要 ext:{jumpUrl} + 顶层 jumpUrl）
                 const r1 = await doTask(id, 4, it.itemId, PROJ_DOTASK, 1, { ext: { jumpUrl: jump }, jumpUrl: jump });
                 const j1 = r1.json || {};
                 if (j1.code === 103 || (j1.msg || "").indexOf("已完成") >= 0) { taskLines.push("[" + t.assignmentName + "] 已完成✅"); stop = true; break; }
-                // 新玩法检测: toUrl 为 countdown 虚拟浮窗 → 纯 HTTP 完成无效(104)，标记手动防烧轮
-                let countdownMode = false;
-                try {
-                    const tu = (((j1.data || {}).assignmentInfo || {}).toUrl) || "";
-                    const pm = tu.match(/params=([^&]+)/);
-                    if (pm && JSON.parse(decodeURIComponent(pm[1])).des === "countdown") countdownMode = true;
-                } catch (e) {}
-                if (countdownMode) { taskLines.push("⚠️[" + t.assignmentName + "] 新玩法(倒计时浮窗)需手动完成一次"); stop = true; break; }
                 await sleep(waitMs);
                 // 2) 完成（actionType=0）
                 const r2 = await doTask(id, 4, it.itemId, PROJ_DOTASK, 0);
