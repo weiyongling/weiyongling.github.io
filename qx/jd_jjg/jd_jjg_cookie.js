@@ -23,32 +23,33 @@ function main() {
     try {
         if (typeof $request === "undefined" || !$request || !$request.url) { $done(); return; }
         const url = $request.url;
-        if (url.indexOf("api.m.jd.com") < 0 || url.indexOf("jjg_") < 0) { $done(); return; }
+        // 放宽: 任意 api.m.jd.com 请求都尝试抓 cookie（风控上报等请求也带完整登录态）
+        if (url.indexOf("api.m.jd.com") < 0) { $done(); return; }
 
         const headers = $request.headers || {};
         const cookie = pick(headers, "Cookie") || "";
         if (cookie.indexOf("pt_key=") < 0 || cookie.indexOf("pt_pin=") < 0) {
-            console.log("[jd_jjg_cookie] 该请求 Cookie 不含登录凭证，跳过");
             $done();
             return;
         }
 
-        // 从 URL 收集设备参数（做任务请求要用）
+        // 从 URL 收集设备参数（做任务请求要用；风控类请求 URL 没有这些参数时沿用旧值）
         const qs = url.split("?")[1] || "";
         const q = {};
         qs.split("&").forEach(p => {
             const i = p.indexOf("=");
             if (i > 0) q[p.slice(0, i)] = decodeURIComponent(p.slice(i + 1));
         });
+        const oldCap = (() => { try { return JSON.parse($prefs.valueForKey(KEY) || "{}"); } catch (e) { return {}; } })();
 
         const capture = {
             cookie: cookie,
-            area: q.area || "",
-            openudid: q.openudid || "",
-            osVersion: q.osVersion || "",
-            d_model: q.d_model || "",
-            d_brand: q.d_brand || "",
-            clientVersion: q.clientVersion || "16.1.50",
+            area: q.area || oldCap.area || "",
+            openudid: q.openudid || oldCap.openudid || "",
+            osVersion: q.osVersion || oldCap.osVersion || "",
+            d_model: q.d_model || oldCap.d_model || "",
+            d_brand: q.d_brand || oldCap.d_brand || "",
+            clientVersion: q.clientVersion || oldCap.clientVersion || "16.1.50",
             captured_at: new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })
         };
 

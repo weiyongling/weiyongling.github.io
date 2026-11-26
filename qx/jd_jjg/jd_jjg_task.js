@@ -242,6 +242,17 @@ async function main() {
             continue;
         }
 
+        // 关注店铺/频道任务 (assignmentType=3, 请求 type=1=FOLLOW, 已实测+100分)
+        if (t.assignmentType === 3) {
+            const fl = (t.ext && (t.ext.followShop || t.ext.followChannel)) || [];
+            const itemId = (fl[0] && fl[0].itemId) || "";
+            await sleep(2000);
+            const rf = await doTask(id, 1, itemId, PROJ_DOTASK, 0);
+            taskLines.push("关注[" + t.assignmentName + "] " + describe(rf.json));
+            await sleep(1500);
+            continue;
+        }
+
         // 浏览任务 (assignmentType=1, shoppingActivity)
         if (t.assignmentType === 1 && t.ext && t.ext.extraType === "shoppingActivity") {
             const items = (t.ext.shoppingActivity || []);
@@ -282,7 +293,7 @@ async function main() {
         "积分 " + s0.score + " → " + s1.score + "  已完成 " + doneCount + " 项",
         summary.length ? summary : "本轮无可做任务");
     if (s0.score === undefined) {
-        $notify("京东家居馆❗️", "积分查询异常", "可能 cookie 失效，请重新抓取");
+        $notify("京东家居馆❗️", "cookie 已失效（未登陆）", "请在京东 App 打开「京东家居馆」活动页一次，等弹「cookie 获取成功✅」通知后重跑本任务");
     }
     $done();
 }

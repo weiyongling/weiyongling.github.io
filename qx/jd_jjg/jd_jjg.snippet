@@ -12,8 +12,8 @@
 # cookie 失效（约1个月）时任务会通知你重新抓取；任务幂等，重复运行不会重复领分。
 
 [rewrite_local]
-# cookie 抓取: 拦截京东 App 访问活动时的 jjg_ 请求（含登录 Cookie 与设备参数），存入持久化
-^https?:\/\/api\.m\.jd\.com\/api\?(?:.*&)?functionId=jjg_(?:queryInteractiveInfoV3|mainPage|doInteractiveAssignment) url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/jd_jjg/jd_jjg_cookie.js
+# cookie 抓取: 拦截京东 App 发出的任意 api.m.jd.com 请求（风控上报也带完整登录 Cookie），存入持久化
+^https?:\/\/api\.m\.jd\.com\/ url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/jd_jjg/jd_jjg_cookie.js
 
 [task_local]
 ; 京东家居馆自动做任务（09:40 / 19:40 各一次；接口幂等，已完成的任务自动跳过）
