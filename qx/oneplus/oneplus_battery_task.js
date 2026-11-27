@@ -18,6 +18,8 @@
 
 'use strict';
 
+var VERSION = '2026-11-27b';
+
 var CONFIG = {
   taskName: '一加 Ace 2 Pro 换电池价',
   historyKey: 'qx_oneplus_ace2pro_battery_v1',
@@ -104,7 +106,21 @@ function fetchText(item) {
       headers: item.headers || {}
     }).then(function (resp) {
       var body = resp && resp.body;
-      if (typeof body !== 'string') body = JSON.stringify(body || '');
+      if (typeof body !== 'string') {
+        // 防御：少数 QX 版本返回字节数组 / ArrayBuffer
+        if (body && Object.prototype.toString.call(body) === '[object Array]') {
+          var out = '';
+          for (var j = 0; j < body.length; j++) out += String.fromCharCode(body[j] & 0xff);
+          body = out;
+        } else if (body && typeof body.byteLength === 'number') {
+          var bytes = new Uint8Array(body);
+          var out2 = '';
+          for (var k = 0; k < bytes.length; k++) out2 += String.fromCharCode(bytes[k]);
+          body = out2;
+        } else {
+          body = JSON.stringify(body || '');
+        }
+      }
       resolve({ status: resp && resp.statusCode, text: body });
     }, function (err) {
       reject(err);
@@ -127,35 +143,44 @@ function stripHtml(html) {
 
 /**
  * 从页面文本里提取"换电池价格"。
- * 策略：找 ¥/￥/元 附近的数字，限定在合理区间；上下文含"电池/官方/换电"加权，
- * 再按 权重×出现次数 取最高分，避免把整机价格或配件价误当作电池价。
+ * 用多套宽容正则收集候选（¥数字 / 数字元 / 价格…数字），再按上下文评分：
+ * "电池+官方+更换价格"加权，"第三方/京东/旗舰店"降权，取最高分。
  */
 function parseResult(text) {
   var clean = stripHtml(text);
-  var re = /(?:[¥￥]\s*|价格[^\d]{0,6}|报价[^\d]{0,6})(\d{2,4}(?:\.\d{1,2})?)\s*元?/g;
-  var m;
+  var patterns = [
+    /[¥￥]\s*(\d{2,4}(?:\.\d{1,2})?)/g,
+    /(\d{2,4}(?:\.\d{1,2})?)\s*元/g,
+    /(?:价格|报价|费用)[^\d]{0,10}(\d{2,4}(?:\.\d{1,2})?)/g
+  ];
   var scores = {};
-  var best = null;
+  var candidates = [];
 
-  while ((m = re.exec(clean)) !== null) {
-    var v = parseFloat(m[1]);
-    if (isNaN(v) || v < CONFIG.priceMin || v > CONFIG.priceMax) continue;
-    var ctx = clean.slice(Math.max(0, m.index - 60), m.index + 60);
-    var score = 1;
-    if (/电池|换电|电芯/.test(ctx)) score += 3;
-    if (/官方|售后|维修|备件/.test(ctx)) score += 2;
-    if (/更换价格|备件价格|官方报价|更换费用/.test(ctx)) score += 3;
-    // 第三方配件/电商报价降权，避免把 ¥145 这类电池商品价当成官方换电价
-    if (/第三方|京东|自营|旗舰店|非官方|兼容|品牌电池/.test(ctx)) score -= 4;
-    if (score <= 0) continue;
-    var key = String(v);
-    scores[key] = (scores[key] || 0) + score;
+  for (var p = 0; p < patterns.length; p++) {
+    var re = patterns[p];
+    var m;
+    while ((m = re.exec(clean)) !== null) {
+      var v = parseFloat(m[1]);
+      if (isNaN(v) || v < CONFIG.priceMin || v > CONFIG.priceMax) continue;
+      var idx = m.index;
+      var ctx = clean.slice(Math.max(0, idx - 70), idx + 70);
+      var score = 1;
+      if (/电池|电芯|换电/.test(ctx)) score += 4;
+      if (/官方|售后|维修|备件|一加|OnePlus/i.test(ctx)) score += 2;
+      if (/更换价格|备件价格|官方报价|更换费用|换电池价格/.test(ctx)) score += 4;
+      if (/第三方|京东|自营|旗舰店|非官方|兼容|品牌电池|淘宝|拼多多/.test(ctx)) score -= 5;
+      if (score <= 0) continue;
+      var key = String(v);
+      scores[key] = (scores[key] || 0) + score;
+      candidates.push({ price: v, score: score, ctx: ctx });
+    }
   }
 
+  var best = null;
   for (var k in scores) {
     if (!best || scores[k] > scores[best]) best = k;
   }
-  return best ? { price: parseFloat(best), score: scores[best] } : null;
+  return best ? { price: parseFloat(best), score: scores[best], candidates: candidates, clean: clean } : null;
 }
 
 /* ---------------- 主流程 ---------------- */
@@ -171,6 +196,9 @@ async function main() {
   var result = null;
   var usedSource = '';
   var errors = [];
+  var debugSamples = [];
+
+  console.log('[QX-DAILY] 启动 v' + VERSION);
 
   for (var i = 0; i < CONFIG.sources.length; i++) {
     var src = CONFIG.sources[i];
@@ -184,6 +212,11 @@ async function main() {
         break;
       }
       errors.push(src.name + ': 页面无有效价格');
+      if (debugSamples.length < 4 && r.text && r.text.length > 20) {
+        debugSamples.push(src.name + ' 文本前240字: ' + stripHtml(r.text).slice(0, 240));
+        debugSamples.push('  数字候选: ' +
+          (r.text.match(/\d{2,4}\s*元|[¥￥]\s*\d{2,4}/g) || []).slice(0, 20).join(','));
+      }
     } catch (e) {
       errors.push(src.name + ': ' + (e && e.error ? e.error : String(e)).slice(0, 60));
     }
@@ -193,6 +226,9 @@ async function main() {
 
   if (!result) {
     console.log('[QX-DAILY] 未取到价格: ' + errors.join(' | '));
+    for (var d = 0; d < debugSamples.length; d++) {
+      console.log('[QX-DAILY] 诊断 ' + debugSamples[d]);
+    }
     notify(CONFIG.taskName + '❗', '今日未取到明确报价',
            '数据源均未返回有效价格，请手动查看官方服务页。' + errors[0]);
     finish();
