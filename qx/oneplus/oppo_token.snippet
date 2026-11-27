@@ -1,0 +1,17 @@
+# OPPO / 一加服务站点 登录凭证抓取 (Quantumult X 重写引用)
+#
+# 注意：查换电池价格【不需要】本脚本，官方备件价格接口免登录。
+#      本片段只用于抓取其它需登录接口的 token（服务记录/会员权益等）。
+#
+# 部署:
+#   1. 重写面板「添加引用」导入本片段，或手动加下面 [rewrite_local] 一行
+#   2. [MITM] hostname 加入 sow-cms.oppo.com, support.oppo.com
+#   3. 手机浏览器打开 support.oppo.com/cn 登录一次账号
+#   4. 收到「OPPO token 获取成功✅」通知后，可禁用此重写规则
+#   凭证存 $prefs 键 oppo_auth_v1
+
+[rewrite_local]
+^https?:\/\/sow-cms\.oppo\.com\/oppo-api\/ url script-request-header https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/oneplus/oppo_token.js
+
+[MITM]
+hostname = sow-cms.oppo.com, support.oppo.com

@@ -1,9 +1,9 @@
 # 一加 Ace 2 Pro 换电池价格每日监控 (Quantumult X 定时任务)
 # 部署: QX「设置-定时任务」里手动添加下面 [task_local] 那行
 #       （注意: 重写引用只导入 [rewrite_local] 和 [MITM]，不会导入 [task_local]）
-# 说明: 纯网络请求任务，不需要 MITM、不需要抓 cookie。
-#       每天 09:00 查官方换电池价并推送；价格来自公开搜索摘要，
-#       查不到明确报价时会通知你手动看官方服务页，不会编造数字。
+# 说明: 直接调 OPPO 官方备件价格 API，免登录、无需 MITM、无需 token。
+#       每天 09:00 推送：官方价 / 活动价 / 人工费 / 与上次对比。
+#       数据源 support.oppo.com 逆向接口，价格准确稳定。
 
 [task_local]
 0 9 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/oneplus/oneplus_battery_task.js, tag=一加换电池价, enabled=true

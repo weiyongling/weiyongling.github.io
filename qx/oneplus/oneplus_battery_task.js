@@ -1,68 +1,40 @@
 /**
  * 一加 Ace 2 Pro 换电池价格每日监控（Quantumult X [task_local] 定时任务）
  *
- * 部署（按本项目约定）:
- *   1. 在 QX「设置-定时任务」里手动添加（重写引用不会导入 [task_local]）:
+ * 数据源：OPPO/一加官方备件价格 API（逆向 support.oppo.com 得到，免登录）
+ *   POST https://sow-cms.oppo.com/oppo-api/basic/v1/getPartPriceNew
+ *   body: {"marketingModelCode":"8db26966a6b84bbebe9dc7a424529faf","regionIsoCode2":"cn"}
+ *   返回 data.partPriceList[] 里「电池」分组的 childList：
+ *     retailPrice 官方价 / discountRetailPrice 活动价 / laborCostAmount 人工费
+ *
+ * 部署:
+ *   1. QX「设置-定时任务」手动添加（重写引用不会导入 [task_local]）:
  *      0 9 * * * https://raw.githubusercontent.com/weiyongling/weiyongling.github.io/main/qx/oneplus/oneplus_battery_task.js, tag=一加换电池价, enabled=true
- *   2. 或导入同目录的 oneplus_battery.snippet，照抄里面的任务行
- *   3. 本任务是纯网络请求，不需要 MITM、不需要抓 cookie
+ *   2. 或导入同目录 oneplus_battery.snippet 照抄任务行
+ *   3. 无需 MITM、无需登录、无需 token
  *
- * 功能: 每天查一加 Ace 2 Pro 官方换电池价格，与上次对比后推送通知；
- *       查不到明确报价时如实通知，不编造数字。历史记录存 $prefs，保留 30 天。
- *
- * 【改做别的任务】改 CONFIG.sources（URL/请求头）和 parseResult() 的提取规则，
- *   网络请求、历史对比、通知、异常收尾都已封装好。
- * 【QX API】$task.fetch() 请求、$prefs.valueForKey/setValueForKey 持久化、
- *   $notify() 通知、$done() 结束。纯 JSC 语法，不依赖 Node 模块。
+ * 价格规则：总价 = 备件价 + 人工费；活动价（discountRetailPrice）存在时优先用活动价。
+ * 历史记录存 $prefs，与上次对比后推送通知，保留 30 天。
  */
 
 'use strict';
 
-var VERSION = '2026-11-27b';
+var VERSION = '2026-11-27c-official-api';
 
 var CONFIG = {
   taskName: '一加 Ace 2 Pro 换电池价',
-  historyKey: 'qx_oneplus_ace2pro_battery_v1',
-  officialUrl: 'https://www.oneplus.com/cn/support',
-  priceMin: 50,
-  priceMax: 600,
-  keepDays: 30,
-  sources: [
-    {
-      name: '百度移动搜索',
-      url: 'https://m.baidu.com/s?word=' +
-           encodeURIComponent('一加ace2pro换电池官方价格'),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'zh-CN,zh;q=0.9'
-      }
-    },
-    {
-      name: 'Bing 社区',
-      url: 'https://www.bing.com/search?q=' +
-           encodeURIComponent('site:bbs.oneplus.com ace2pro 换电池 价格') +
-           '&setlang=zh-hans&cc=CN',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'zh-CN,zh;q=0.9'
-      }
-    },
-    {
-      name: '一加官方服务页',
-      url: 'https://service.oneplus.com/cn',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        'Accept-Language': 'zh-CN,zh;q=0.9'
-      }
-    }
-  ]
+  historyKey: 'qx_oneplus_ace2pro_battery_v2',
+  api: 'https://sow-cms.oppo.com/oppo-api/basic/v1/getPartPriceNew',
+  modelCode: '8db26966a6b84bbebe9dc7a424529faf', // 一加 Ace 2 Pro
+  region: 'cn',
+  officialUrl: 'https://support.oppo.com/cn/spare-parts-price/#/detail?marketingModelCode=8db26966a6b84bbebe9dc7a424529faf',
+  keepDays: 30
 };
 
-/* ---------------- 基础工具 ---------------- */
+/* ---------------- 工具 ---------------- */
 
 function todayStr() {
   var d = new Date();
-  // QX 运行在 iOS，通常已是本地时区；这里统一按 UTC+8 输出日期
   var t = new Date(d.getTime() + 8 * 3600 * 1000);
   var p = function (n) { return n < 10 ? '0' + n : '' + n; };
   return t.getUTCFullYear() + '-' + p(t.getUTCMonth() + 1) + '-' + p(t.getUTCDate()) +
@@ -98,94 +70,79 @@ function finish() {
   try { $done({}); } catch (e) { try { $done(); } catch (e2) {} }
 }
 
-function fetchText(item) {
+function num(v) {
+  var n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
+ * 调官方接口，返回电池条目。
+ * 从 partPriceList 的 childList 里找名字精确为「电池」的项（排除电池盖组件）。
+ */
+function fetchBattery() {
   return new Promise(function (resolve, reject) {
     $task.fetch({
-      url: item.url,
-      method: 'GET',
-      headers: item.headers || {}
+      url: CONFIG.api,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf8',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        marketingModelCode: CONFIG.modelCode,
+        regionIsoCode2: CONFIG.region
+      })
     }).then(function (resp) {
-      var body = resp && resp.body;
-      if (typeof body !== 'string') {
-        // 防御：少数 QX 版本返回字节数组 / ArrayBuffer
-        if (body && Object.prototype.toString.call(body) === '[object Array]') {
+      var text = resp && resp.body;
+      if (typeof text !== 'string') {
+        if (text && Object.prototype.toString.call(text) === '[object Array]') {
           var out = '';
-          for (var j = 0; j < body.length; j++) out += String.fromCharCode(body[j] & 0xff);
-          body = out;
-        } else if (body && typeof body.byteLength === 'number') {
-          var bytes = new Uint8Array(body);
-          var out2 = '';
-          for (var k = 0; k < bytes.length; k++) out2 += String.fromCharCode(bytes[k]);
-          body = out2;
+          for (var j = 0; j < text.length; j++) out += String.fromCharCode(text[j] & 0xff);
+          text = out;
         } else {
-          body = JSON.stringify(body || '');
+          text = JSON.stringify(text || '');
         }
       }
-      resolve({ status: resp && resp.statusCode, text: body });
+      var json;
+      try { json = JSON.parse(text); } catch (e) {
+        reject({ error: '响应非 JSON: ' + text.slice(0, 120) });
+        return;
+      }
+      if (String(json.code) !== '1' || !json.data) {
+        reject({ error: '接口返回 code=' + json.code + ' msg=' + json.msg });
+        return;
+      }
+      var list = json.data.partPriceList || [];
+      var found = null;
+      for (var i = 0; i < list.length && !found; i++) {
+        var children = list[i].childList || [];
+        for (var k = 0; k < children.length; k++) {
+          var c = children[k];
+          var name = c.partName || c.lv3ClassificationName || '';
+          if (name === '电池') { found = c; break; }
+        }
+      }
+      if (!found) {
+        reject({ error: '接口未找到电池条目（分组数 ' + list.length + '）' });
+        return;
+      }
+      resolve({
+        retail: num(found.retailPrice),
+        discount: num(found.discountRetailPrice),
+        labor: num(found.laborCostAmount),
+        materialCode: found.materialCode || ''
+      });
     }, function (err) {
       reject(err);
     });
   });
 }
 
-/* ---------------- 结果提取（改任务时主要改这里） ---------------- */
-
-function stripHtml(html) {
-  return String(html || '')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;|&#160;/g, ' ')
-    .replace(/&yen;|&#165;/g, '¥')
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ');
-}
-
-/**
- * 从页面文本里提取"换电池价格"。
- * 用多套宽容正则收集候选（¥数字 / 数字元 / 价格…数字），再按上下文评分：
- * "电池+官方+更换价格"加权，"第三方/京东/旗舰店"降权，取最高分。
- */
-function parseResult(text) {
-  var clean = stripHtml(text);
-  var patterns = [
-    /[¥￥]\s*(\d{2,4}(?:\.\d{1,2})?)/g,
-    /(\d{2,4}(?:\.\d{1,2})?)\s*元/g,
-    /(?:价格|报价|费用)[^\d]{0,10}(\d{2,4}(?:\.\d{1,2})?)/g
-  ];
-  var scores = {};
-  var candidates = [];
-
-  for (var p = 0; p < patterns.length; p++) {
-    var re = patterns[p];
-    var m;
-    while ((m = re.exec(clean)) !== null) {
-      var v = parseFloat(m[1]);
-      if (isNaN(v) || v < CONFIG.priceMin || v > CONFIG.priceMax) continue;
-      var idx = m.index;
-      var ctx = clean.slice(Math.max(0, idx - 70), idx + 70);
-      var score = 1;
-      if (/电池|电芯|换电/.test(ctx)) score += 4;
-      if (/官方|售后|维修|备件|一加|OnePlus/i.test(ctx)) score += 2;
-      if (/更换价格|备件价格|官方报价|更换费用|换电池价格/.test(ctx)) score += 4;
-      if (/第三方|京东|自营|旗舰店|非官方|兼容|品牌电池|淘宝|拼多多/.test(ctx)) score -= 5;
-      if (score <= 0) continue;
-      var key = String(v);
-      scores[key] = (scores[key] || 0) + score;
-      candidates.push({ price: v, score: score, ctx: ctx });
-    }
-  }
-
-  var best = null;
-  for (var k in scores) {
-    if (!best || scores[k] > scores[best]) best = k;
-  }
-  return best ? { price: parseFloat(best), score: scores[best], candidates: candidates, clean: clean } : null;
-}
-
 /* ---------------- 主流程 ---------------- */
 
 async function main() {
+  console.log('[QX-DAILY] 启动 v' + VERSION);
+
   var history = { last: null, records: [] };
   var raw = storeRead(CONFIG.historyKey);
   if (raw) {
@@ -193,72 +150,52 @@ async function main() {
   }
   if (!history.records) history.records = [];
 
-  var result = null;
-  var usedSource = '';
-  var errors = [];
-  var debugSamples = [];
-
-  console.log('[QX-DAILY] 启动 v' + VERSION);
-
-  for (var i = 0; i < CONFIG.sources.length; i++) {
-    var src = CONFIG.sources[i];
-    try {
-      var r = await fetchText(src);
-      console.log('[QX-DAILY] ' + src.name + ' HTTP ' + r.status + ' len=' + r.text.length);
-      var parsed = parseResult(r.text);
-      if (parsed) {
-        result = parsed;
-        usedSource = src.name;
-        break;
-      }
-      errors.push(src.name + ': 页面无有效价格');
-      if (debugSamples.length < 4 && r.text && r.text.length > 20) {
-        debugSamples.push(src.name + ' 文本前240字: ' + stripHtml(r.text).slice(0, 240));
-        debugSamples.push('  数字候选: ' +
-          (r.text.match(/\d{2,4}\s*元|[¥￥]\s*\d{2,4}/g) || []).slice(0, 20).join(','));
-      }
-    } catch (e) {
-      errors.push(src.name + ': ' + (e && e.error ? e.error : String(e)).slice(0, 60));
-    }
-  }
-
-  var now = todayStr();
-
-  if (!result) {
-    console.log('[QX-DAILY] 未取到价格: ' + errors.join(' | '));
-    for (var d = 0; d < debugSamples.length; d++) {
-      console.log('[QX-DAILY] 诊断 ' + debugSamples[d]);
-    }
-    notify(CONFIG.taskName + '❗', '今日未取到明确报价',
-           '数据源均未返回有效价格，请手动查看官方服务页。' + errors[0]);
+  var bat;
+  try {
+    bat = await fetchBattery();
+  } catch (e) {
+    var msg = e && e.error ? e.error : String(e);
+    console.log('[QX-DAILY] 请求失败: ' + msg);
+    notify(CONFIG.taskName + '❗', '价格接口请求失败', msg);
     finish();
     return;
   }
 
-  var price = result.price;
+  // 活动价存在且 >0 时优先用活动价，否则用官方价；再加人工费
+  var partPrice = (bat.discount > 0) ? bat.discount : bat.retail;
+  var total = partPrice + bat.labor;
+  var isDiscount = bat.discount > 0;
+
+  var priceLine = '¥' + total.toFixed(0) +
+    (isDiscount ? '（活动价 ¥' + partPrice.toFixed(0) + ' + 人工 ¥' + bat.labor.toFixed(0) + '）'
+                : '（官方价 ¥' + bat.retail.toFixed(0) + ' + 人工 ¥' + bat.labor.toFixed(0) + '）');
+
   var change = '';
   if (history.last && typeof history.last.price === 'number') {
-    var diff = price - history.last.price;
+    var diff = total - history.last.price;
     if (diff > 0) change = '较上次上涨 ¥' + diff.toFixed(0);
     else if (diff < 0) change = '较上次下降 ¥' + Math.abs(diff).toFixed(0);
     else change = '较上次持平';
-    change += '（' + history.last.date + ' ¥' + history.last.price + '）';
+    change += '（' + history.last.date + ' ¥' + history.last.price.toFixed(0) + '）';
   } else {
     change = '首次记录';
   }
 
-  history.last = { price: price, date: now, source: usedSource };
-  history.records.push({ date: now, price: price, source: usedSource });
+  history.last = { price: total, date: todayStr(), source: 'OPPO官方备件API' };
+  history.records.push(history.last);
   if (history.records.length > CONFIG.keepDays) {
     history.records = history.records.slice(-CONFIG.keepDays);
   }
   storeWrite(CONFIG.historyKey, JSON.stringify(history));
 
-  var subtitle = '¥' + price.toFixed(0) + '  ' + change;
-  var body = '来源：' + usedSource + '｜' + now + '\n' +
-             '官方服务页：' + CONFIG.officialUrl;
+  var subtitle = priceLine + '  ' + change;
+  var body = '官方价 ¥' + bat.retail.toFixed(0) +
+             '｜活动价 ' + (isDiscount ? '¥' + bat.discount.toFixed(0) : '无') +
+             '\n人工费 ¥' + bat.labor.toFixed(0) +
+             '｜备件编码 ' + bat.materialCode +
+             '\n来源：OPPO 官方备件价格接口｜' + todayStr();
   notify(CONFIG.taskName, subtitle, body);
-  console.log('[QX-DAILY] ' + subtitle + ' [' + usedSource + ']');
+  console.log('[QX-DAILY] ' + subtitle);
   finish();
 }
 
